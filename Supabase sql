@@ -1,0 +1,104 @@
+-- Start of SQL block to copy
+
+-- Ensure uuid-ossp extension is enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. Create the 'ideas' table (IF NOT EXISTS to be safe)
+CREATE TABLE IF NOT EXISTS public.ideas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    submitter_name TEXT, -- Optional name for the submitter
+    tags TEXT[], -- Optional array of tags
+    total_sats_received BIGINT DEFAULT 0 NOT NULL, -- Stores total sats received for this idea
+    opennode_charge_ids JSONB -- Optional: to store associated OpenNode charge IDs for reconciliation
+);
+
+-- Add a comment to describe the table (run only if table exists and comment doesn't)
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') AND
+      NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_description d
+       JOIN pg_catalog.pg_class c ON c.oid = d.objoid
+       WHERE c.relname = 'ideas' AND d.description = 'Stores user-submitted ideas for Bitcoin value propositions.'
+   ) THEN
+      COMMENT ON TABLE public.ideas IS 'Stores user-submitted ideas for Bitcoin value propositions.';
+   END IF;
+END
+$$;
+
+-- 2. Create function and trigger for automatically updating 'updated_at'
+-- This section should only run if the 'ideas' table exists
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+      CREATE OR REPLACE FUNCTION public.handle_updated_at()
+      RETURNS TRIGGER AS $func$
+      BEGIN
+          NEW.updated_at = now();
+          RETURN NEW;
+      END;
+      $func$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS on_ideas_updated_at ON public.ideas;
+      CREATE TRIGGER on_ideas_updated_at
+      BEFORE UPDATE ON public.ideas
+      FOR EACH ROW
+      EXECUTE FUNCTION public.handle_updated_at();
+   END IF;
+END
+$$;
+
+-- 3. Enable Row Level Security (RLS) on the table
+-- This section should only run if the 'ideas' table exists
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+      ALTER TABLE public.ideas ENABLE ROW LEVEL SECURITY;
+   END IF;
+END
+$$;
+
+-- 4. Drop potentially incorrect old policies (if they were created with "anonymous" role)
+-- This section should only run if the 'ideas' table exists
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+      DROP POLICY IF EXISTS "Allow public anon read access to ideas" ON public.ideas;
+      DROP POLICY IF EXISTS "Allow public anon insert access to ideas" ON public.ideas;
+   END IF;
+END
+$$;
+
+-- 5. RLS Policy: Allow public anon read access to all ideas
+-- This section should only run if the 'ideas' table exists
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+      CREATE POLICY "Allow public anon read access to ideas"
+      ON public.ideas
+      FOR SELECT
+      TO anon -- Corrected role
+      USING (true);
+   END IF;
+END
+$$;
+
+-- 6. RLS Policy: Allow public anon insert access for new ideas
+-- This section should only run if the 'ideas' table exists
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+      CREATE POLICY "Allow public anon insert access to ideas"
+      ON public.ideas
+      FOR INSERT
+      TO anon -- Corrected role
+      WITH CHECK (true);
+   END IF;
+END
+$$;
+
+-- End of SQL block to copy

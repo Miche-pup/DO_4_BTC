@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import IdeaForm from '@/components/IdeaForm'
 import Link from 'next/link'
+import IdeaSubmissionArea from '@/components/IdeaSubmissionArea'
 
 // Types for bubble
 interface BubbleData {
@@ -16,6 +17,20 @@ interface BubbleData {
   dx: number
   dy: number
   paused?: boolean
+  bgColor: string // new: inline background color
+}
+
+interface Idea {
+  id: string
+  created_at: string
+  updated_at: string
+  title: string
+  description: string
+  submitter_name: string | null
+  tags: string[] | null
+  total_sats_received: number
+  opennode_charge_ids: string[] | null
+  lightning_address: string | null
 }
 
 // Bubble component for animated headline
@@ -34,6 +49,7 @@ const Bubble = ({
   onMove,
   onExpand,
   onCollapse,
+  bgColor,
 }: BubbleData & {
   expanded: boolean
   onMove: (id: number, x: number, y: number, dx: number, dy: number) => void
@@ -81,7 +97,7 @@ const Bubble = ({
 
   return (
     <div
-      className={`absolute flex flex-col items-center justify-center bg-orange-700/90 text-white font-bold shadow-lg select-none z-20 transition-all duration-300 ${expanded ? 'cursor-default' : 'cursor-pointer'} ${expanded ? 'ring-4 ring-orange-300' : ''}`}
+      className={`absolute flex flex-col items-center justify-center text-white font-bold shadow-lg select-none z-20 transition-all duration-300 ${expanded ? 'cursor-default' : 'cursor-pointer'} ${expanded ? 'ring-4 ring-orange-300' : ''}`}
       style={{
         left: `${x}vw`,
         top: `${y}vh`,
@@ -91,6 +107,7 @@ const Bubble = ({
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'box-shadow 0.2s, width 0.3s, height 0.3s',
         overflow: expanded ? 'visible' : 'hidden',
+        backgroundColor: bgColor,
       }}
       onClick={handleClick}
       tabIndex={0}
@@ -123,24 +140,136 @@ export default function Home() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const nextId = useRef(0)
 
-  // Add new bubble on submit
-  const handleAddIdea = (data: { name: string; headline: string; lightning: string; idea: string }) => {
-    setBubbles(bs => [
-      ...bs,
-      {
-        id: nextId.current++,
-        name: data.name,
-        headline: data.headline,
-        lightning: data.lightning,
-        idea: data.idea,
-        x: Math.random() * 80 + 10,
-        y: Math.random() * 60 + 10,
-        dx: (Math.random() - 0.5) * 0.25,
-        dy: (Math.random() - 0.5) * 0.25,
-        paused: false,
-      },
-    ])
+  // Helper to interpolate between two colors
+  function lerpColor(a: string, b: string, t: number) {
+    const ah = a.replace('#', '')
+    const bh = b.replace('#', '')
+    const ar = parseInt(ah.substring(0, 2), 16)
+    const ag = parseInt(ah.substring(2, 4), 16)
+    const ab = parseInt(ah.substring(4, 6), 16)
+    const br = parseInt(bh.substring(0, 2), 16)
+    const bg = parseInt(bh.substring(2, 4), 16)
+    const bb = parseInt(bh.substring(4, 6), 16)
+    const rr = Math.round(ar + (br - ar) * t)
+    const rg = Math.round(ag + (bg - ag) * t)
+    const rb = Math.round(ab + (bb - ab) * t)
+    return `rgb(${rr},${rg},${rb})`
   }
+
+  // Fetch ideas from Supabase
+  const fetchIdeas = async () => {
+    try {
+      const res = await fetch('/api/ideas');
+      const result = await res.json();
+      if (res.ok && Array.isArray(result.ideas)) {
+        const allIdeas: Idea[] = result.ideas;
+        // Sort by created_at descending for newest
+        const newestIdeas = [...allIdeas].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
+        // Remove newest from the rest
+        const newestIds = new Set(newestIdeas.map(i => i.id));
+        const restIdeas = allIdeas.filter(i => !newestIds.has(i.id));
+        // Shuffle the rest and pick up to 20
+        const shuffled = restIdeas.sort(() => 0.5 - Math.random());
+        const picked = shuffled.slice(0, 20);
+        // Find max votes for scaling
+        const maxVotes = Math.max(2, ...restIdeas.map(i => i.total_sats_received || 0));
+        const orange = '#ea580c'; // 0 votes
+        const lightOrange = '#f59e42'; // 1 vote
+        const yellow = '#fbbf24'; // max votes
+        const orangeRed = '#ff5722'; // newest
+        // Generate positions for all bubbles
+        const positions = Array.from({ length: 25 }, () => ({
+          x: Math.random() * 80 + 10,
+          y: Math.random() * 60 + 10,
+          dx: (Math.random() - 0.5) * 0.25,
+          dy: (Math.random() - 0.5) * 0.25,
+        }));
+        // First 5: newest
+        const newestBubbles = newestIdeas.map((idea, idx) => ({
+          id: idx,
+          name: idea.submitter_name || '',
+          headline: idea.title || '',
+          lightning: idea.lightning_address || '',
+          idea: idea.description || '',
+          ...positions[idx],
+          paused: false,
+          bgColor: orangeRed,
+        }));
+        // Next 20: rest, vote-based color
+        const restBubbles = picked.map((idea, idx) => {
+          let bgColor = orange;
+          if (idea.total_sats_received === 1) {
+            bgColor = lightOrange;
+          } else if (idea.total_sats_received > 1) {
+            const t = Math.min(1, (idea.total_sats_received - 1) / (maxVotes - 1));
+            bgColor = lerpColor(lightOrange, yellow, t);
+          }
+          return {
+            id: 5 + idx,
+            name: idea.submitter_name || '',
+            headline: idea.title || '',
+            lightning: idea.lightning_address || '',
+            idea: idea.description || '',
+            ...positions[5 + idx],
+            paused: false,
+            bgColor,
+          }
+        });
+        setBubbles([...newestBubbles, ...restBubbles]);
+        nextId.current = newestBubbles.length + restBubbles.length;
+      }
+    } catch (err) {
+      console.error('Failed to fetch ideas:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchIdeas();
+  }, []);
+
+  // Add rotation effect every 60 seconds for bubbles
+  useEffect(() => {
+    const rotationInterval = setInterval(() => {
+      fetchIdeas();
+    }, 60000); // Rotate every 60 seconds
+
+    return () => clearInterval(rotationInterval);
+  }, []);
+
+  // Add new bubble on submit
+  const handleAddIdea = async (data: { name: string; headline: string; lightning: string; idea: string }) => {
+    console.log('--- [FRONTEND LOG] Form data received:', data);
+
+    const apiPayload = {
+      submitter_name: data.name,
+      title: data.headline,
+      lightning_address: data.lightning,
+      description: data.idea,
+    };
+    console.log('--- [FRONTEND LOG] Sending payload to API:', apiPayload);
+
+    try {
+      const response = await fetch('/api/ideas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiPayload),
+      });
+      console.log('--- [FRONTEND LOG] API response status:', response.status);
+      const result = await response.json();
+      console.log('--- [FRONTEND LOG] API result:', result);
+
+      if (response.ok) {
+        alert('Idea submitted successfully!');
+        // Re-fetch ideas from Supabase
+        fetchIdeas();
+      } else {
+        alert(result.error || response.statusText);
+      }
+    } catch (err) {
+      console.error('--- [FRONTEND LOG] Fetch error:', err);
+      alert('An error occurred while submitting your idea. Please try again.');
+    }
+  };
 
   // Update bubble position
   const handleMove = (id: number, x: number, y: number, dx: number, dy: number) => {
@@ -162,6 +291,7 @@ export default function Home() {
 
   // SVG lines between bubbles
   const lines = []
+  // Lines between main bubbles
   for (let i = 0; i < bubbles.length; i++) {
     for (let j = i + 1; j < bubbles.length; j++) {
       lines.push(
@@ -194,7 +324,7 @@ export default function Home() {
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh' }}>
           {lines}
         </svg>
-        {/* Bubbles */}
+        {/* Main Bubbles */}
         {bubbles.map(bubble => (
           <Bubble
             key={bubble.id}
@@ -226,6 +356,12 @@ export default function Home() {
             <circle cx="300" cy="300" r="290" fill="#f7931a" />
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" alignmentBaseline="middle" fill="white" fontSize="320" fontWeight="bold" fontFamily="Arial, Helvetica, sans-serif">₿</text>
           </svg>
+        </div>
+        <div className="my-10">
+          <IdeaSubmissionArea />
+        </div>
+        <div className="mt-10 w-full">
+          <h2 className="text-2xl font-semibold mb-4">Submitted Ideas Will Go Here</h2>
         </div>
       </main>
     </>
