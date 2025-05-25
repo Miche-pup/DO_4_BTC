@@ -8,6 +8,7 @@ import IdeaSubmissionArea from '@/components/IdeaSubmissionArea'
 // Types for bubble
 interface BubbleData {
   id: number
+  db_id: string
   name: string
   headline: string
   lightning: string
@@ -191,25 +192,40 @@ export default function Home() {
         });
     }
     fetchBubbleGroups();
-    const interval = setInterval(fetchBubbleGroups, 60000);
+    const interval = setInterval(fetchBubbleGroups, 20000);
     return () => clearInterval(interval);
   }, []);
 
   // Transform bubbleGroupData.combinedUniqueIdeas into bubbles state
   useEffect(() => {
     if (bubbleGroupData && bubbleGroupData.combinedUniqueIdeas && bubbleGroupData.combinedUniqueIdeas.length > 0) {
-      console.log('--- [FRONTEND LOG] Updating bubbles from bubbleGroupData.combinedUniqueIdeas ---');
       const ideas = bubbleGroupData.combinedUniqueIdeas;
       const maxVotes = Math.max(2, ...ideas.map(i => i.total_sats_received || 0));
       const orange = '#ea580c';
       const lightOrange = '#f59e42';
       const yellow = '#fbbf24';
-      const positions = Array.from({ length: ideas.length }, () => ({
-        x: Math.random() * 80 + 10,
-        y: Math.random() * 60 + 10,
-        dx: (Math.random() - 0.5) * 0.25,
-        dy: (Math.random() - 0.5) * 0.25,
-      }));
+      // Find the index of the top-ranked idea (highest total_sats_received)
+      let topIdx = 0;
+      let topVotes = -1;
+      ideas.forEach((idea, idx) => {
+        if ((idea.total_sats_received || 0) > topVotes) {
+          topVotes = idea.total_sats_received || 0;
+          topIdx = idx;
+        }
+      });
+      const positions = Array.from({ length: ideas.length }, (_, idx) => {
+        let dx = (Math.random() - 0.5) * 0.16;
+        let dy = (Math.random() - 0.5) * 0.16;
+        // Slow down all bubbles by 30%
+        dx *= 0.7;
+        dy *= 0.7;
+        return {
+          x: Math.random() * 80 + 10,
+          y: Math.random() * 60 + 10,
+          dx,
+          dy,
+        };
+      });
       const newBubbles = ideas.map((idea, idx) => {
         let bgColor = orange;
         if (idea.total_sats_received === 1) {
@@ -220,6 +236,7 @@ export default function Home() {
         }
         return {
           id: idx,
+          db_id: idea.id,
           name: idea.submitter_name || '',
           headline: idea.title || '',
           lightning: idea.lightning_address || '',
@@ -232,7 +249,6 @@ export default function Home() {
       });
       setBubbles(newBubbles);
       nextId.current = newBubbles.length;
-      console.log('--- [FRONTEND LOG] New bubbles array:', newBubbles);
     }
   }, [bubbleGroupData]);
 
@@ -301,21 +317,27 @@ export default function Home() {
 
   // SVG lines between bubbles
   const lines = []
-  // Lines between main bubbles
+  // Calculate the diagonal distance of the viewport in vw/vh units
+  const maxDistance = Math.sqrt(100 * 100 + 100 * 100) / 3; // 1/3 of the diagonal
   for (let i = 0; i < bubbles.length; i++) {
     for (let j = i + 1; j < bubbles.length; j++) {
-      lines.push(
-        <line
-          key={`line-${bubbles[i].id}-${bubbles[j].id}`}
-          x1={`${bubbles[i].x}vw`}
-          y1={`${bubbles[i].y}vh`}
-          x2={`${bubbles[j].x}vw`}
-          y2={`${bubbles[j].y}vh`}
-          stroke="#fbbf24"
-          strokeWidth="1"
-          opacity="0.5"
-        />
-      )
+      const dx = bubbles[i].x - bubbles[j].x;
+      const dy = bubbles[i].y - bubbles[j].y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= maxDistance) {
+        lines.push(
+          <line
+            key={`line-${bubbles[i].id}-${bubbles[j].id}`}
+            x1={`${bubbles[i].x}vw`}
+            y1={`${bubbles[i].y}vh`}
+            x2={`${bubbles[j].x}vw`}
+            y2={`${bubbles[j].y}vh`}
+            stroke="#fbbf24"
+            strokeWidth="1"
+            opacity="0.5"
+          />
+        )
+      }
     }
   }
 
@@ -377,14 +399,6 @@ export default function Home() {
             <circle cx="300" cy="300" r="290" fill="#f7931a" />
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" alignmentBaseline="middle" fill="white" fontSize="320" fontWeight="bold" fontFamily="Arial, Helvetica, sans-serif">₿</text>
           </svg>
-        </div>
-        <div className="my-10">
-         
-          <ul>
-            {bubbleGroupData.combinedUniqueIdeas.map(idea => (
-              <li key={idea.id}>{idea.id} - {idea.title}</li>
-            ))}
-          </ul>
         </div>
       </main>
     </>

@@ -2,12 +2,9 @@
 import { NextResponse, NextRequest } from 'next/server'; // Ensure NextRequest is imported for GET
 import { supabase } from '@/lib/supabase/config'; // Make sure this path is correct
 
-export async function POST(request: Request) { // Using 'Request' from global scope is fine for POST body
-  console.log('--- [API LOG] POST /api/ideas endpoint HIT ---');
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('--- [API LOG] Received request body:', JSON.stringify(body, null, 2));
-
     // Destructure ALL fields you expect from the form, including lightning_address
     const {
       title,
@@ -16,22 +13,17 @@ export async function POST(request: Request) { // Using 'Request' from global sc
       lightning_address, // Make sure to destructure this
       tags
     } = body;
-
     // New validation for title
     if (typeof title !== 'string' || title.trim().length === 0) {
-      console.log('--- [API LOG] Validation FAILED: Title is invalid or empty.');
       return NextResponse.json({ error: 'Catchy Headline is required and cannot be empty.' }, { status: 400 });
     }
     // New validation for description
     if (typeof description !== 'string' || description.trim().length === 0) {
-      console.log('--- [API LOG] Validation FAILED: Description is invalid or empty.');
       return NextResponse.json({ error: '"How can we add value to Bitcoin?" field is required and cannot be empty.' }, { status: 400 });
     }
-
     // Use trimmed values for insertion
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
-
     // Construct ideaData
     const ideaData: {
       title: string;
@@ -43,58 +35,38 @@ export async function POST(request: Request) { // Using 'Request' from global sc
       title: trimmedTitle,
       description: trimmedDescription,
     };
-
     if (submitter_name && typeof submitter_name === 'string' && submitter_name.trim().length > 0) {
       ideaData.submitter_name = submitter_name.trim();
     }
-
     // Add lightning_address to ideaData if provided and valid
     if (lightning_address && typeof lightning_address === 'string' && lightning_address.trim().length > 0) {
         ideaData.lightning_address = lightning_address.trim();
     }
-
-
     if (Array.isArray(tags) && tags.length > 0) {
       const cleanTags = tags.filter(tag => typeof tag === 'string' && tag.trim().length > 0);
       if (cleanTags.length > 0) {
         ideaData.tags = cleanTags; // Only add if there are non-empty tags
       }
     }
-
-    console.log('--- [API LOG] Data to be inserted into Supabase:', JSON.stringify(ideaData, null, 2));
-
     // Insert into Supabase
-    // Using .single() with .select() can be good if you expect exactly one row.
-    // If you want the array of inserted rows (even if it's one), just .select() is fine.
     const { data: insertedData, error: insertError } = await supabase
       .from('ideas')
       .insert(ideaData)
       .select()
-      .single(); // .single() will error if 0 or >1 rows are affected by insert and select.
-
+      .single();
     if (insertError) {
-      console.error('--- [API LOG] Supabase INSERT ERROR:', JSON.stringify(insertError, null, 2));
       return NextResponse.json({ error: 'Failed to submit idea. Please try again later.', details: insertError.message }, { status: 500 });
     }
-
-    // Check if insertedData is null or not what you expect, even if no error
     if (!insertedData) {
-        console.error('--- [API LOG] Supabase insert did not return data, though no explicit error reported.');
         return NextResponse.json({ error: 'Failed to confirm idea submission. No data returned.' }, { status: 500 });
     }
-
-    console.log('--- [API LOG] Idea CREATED SUCCESSFULLY in Supabase:', JSON.stringify(insertedData, null, 2));
-    // Return the specific fields you want, or the whole object
     return NextResponse.json(insertedData, { status: 201 });
-
   } catch (err) {
-    console.error('--- [API LOG] CATCH BLOCK ERROR in POST /api/ideas:', err);
     const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
     let errorDetails = {};
        if (err instanceof Error) {
            errorDetails = { name: err.name, stack: err.stack }; // Include stack for more debug info
        }
-    console.error('--- [API LOG] CATCH BLOCK ERROR DETAILS:', JSON.stringify(errorDetails, null, 2));
     return NextResponse.json({ error: 'Internal server error.', details: errorMessage }, { status: 500 });
   }
 }
