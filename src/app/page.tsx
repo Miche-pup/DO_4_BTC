@@ -330,7 +330,14 @@ export default function Home() {
         <div className="w-full flex flex-col items-center justify-center pt-8 z-30 relative">
           <h1 className="text-xl md:text-2xl font-bold text-white text-center">
             What can we{' '}
-            <Link href="/" className="text-orange-400 underline hover:text-orange-300 transition font-bold">Do4BTC</Link>
+            <a
+              href="/"
+              onClick={e => { e.preventDefault(); window.location.reload(); }}
+              className="text-orange-400 underline hover:text-orange-300 transition font-bold"
+              aria-label="Refresh Page"
+            >
+              Do4BTC
+            </a>
             ?
           </h1>
         </div>
@@ -372,24 +379,7 @@ export default function Home() {
           </svg>
         </div>
         <div className="my-10">
-          <IdeaSubmissionArea />
-        </div>
-        <div className="mt-10 w-full">
-          <h2 className="text-2xl font-semibold mb-4">Submitted Ideas Will Go Here</h2>
-        </div>
-        <div>
-          <h2>Bubble Chart Groups</h2>
-          <ul>
-            <li>Newest: {bubbleGroupData.newest.length} items</li>
-            <li>Most Voted: {bubbleGroupData.mostVoted.length} items</li>
-            <li>Oldest: {bubbleGroupData.oldest.length} items</li>
-            <li>Random: {bubbleGroupData.random.length} items</li>
-            <li>Random Voted: {bubbleGroupData.randomVoted.length} items</li>
-            <li>Deduplicated for chart: {bubbleGroupData.combinedUniqueIdeas.length} items</li>
-          </ul>
-        </div>
-        <div>
-          <h3>Debug: Bubbles to Render</h3>
+         
           <ul>
             {bubbleGroupData.combinedUniqueIdeas.map(idea => (
               <li key={idea.id}>{idea.id} - {idea.title}</li>
