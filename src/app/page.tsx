@@ -18,6 +18,7 @@ interface BubbleData {
   dy: number
   paused?: boolean
   bgColor: string // new: inline background color
+  total_sats_received: number
 }
 
 export interface Idea {
@@ -60,11 +61,13 @@ const Bubble = ({
   onExpand,
   onCollapse,
   bgColor,
+  total_sats_received,
 }: BubbleData & {
   expanded: boolean
   onMove: (id: number, x: number, y: number, dx: number, dy: number) => void
   onExpand: (id: number) => void
   onCollapse: () => void
+  total_sats_received: number
 }) => {
   const requestRef = useRef<number>()
 
@@ -125,10 +128,10 @@ const Bubble = ({
     >
       {expanded ? (
         <div className="w-full h-full flex flex-col justify-center items-center p-6 gap-2 text-base font-normal bg-white text-black rounded-full border-2 border-orange-400 shadow-xl text-center">
-          {name && <div className="w-full"><span className="font-semibold">Name:</span> {name}</div>}
-          {headline && <div className="w-full"><span className="font-semibold">Headline:</span> {headline}</div>}
-          {lightning && <div className="w-full"><span className="font-semibold">Lightning:</span> {lightning}</div>}
-          {idea && <div className="w-full"><span className="font-semibold">Idea:</span> {idea}</div>}
+          {headline && <div className="w-full">{headline}</div>}
+          {name && <div className="w-full">{name}</div>}
+          {idea && <div className="w-full">{idea}</div>}
+          <div className="w-full text-xs text-gray-500 mt-2">Votes: {total_sats_received}</div>
           <button
             className="mt-4 w-full rounded-full bg-yellow-400 px-6 py-3 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition"
             onClick={e => e.stopPropagation()}
@@ -224,6 +227,7 @@ export default function Home() {
           ...positions[idx],
           paused: false,
           bgColor,
+          total_sats_received: idea.total_sats_received || 0,
         };
       });
       setBubbles(newBubbles);

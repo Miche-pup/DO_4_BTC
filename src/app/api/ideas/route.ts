@@ -28,12 +28,6 @@ export async function POST(request: Request) { // Using 'Request' from global sc
       return NextResponse.json({ error: '"How can we add value to Bitcoin?" field is required and cannot be empty.' }, { status: 400 });
     }
 
-    // Optional: Validate Lightning Address format
-    if (lightning_address && (typeof lightning_address !== 'string' || !lightning_address.includes('@') || lightning_address.trim().length === 0)) {
-        console.log('--- [API LOG] Validation FAILED: Invalid or empty Lightning Address format.');
-        return NextResponse.json({ error: 'Invalid Lightning Address format. It should look like user@domain.com and not be empty if provided.' }, { status: 400 });
-    }
-
     // Use trimmed values for insertion
     const trimmedTitle = title.trim();
     const trimmedDescription = description.trim();
