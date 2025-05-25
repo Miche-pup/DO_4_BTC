@@ -20,17 +20,27 @@ interface BubbleData {
   bgColor: string // new: inline background color
 }
 
-interface Idea {
+export interface Idea {
   id: string
+  title: string
   created_at: string
   updated_at: string
-  title: string
   description: string
   submitter_name: string | null
   tags: string[] | null
   total_sats_received: number
   opennode_charge_ids: string[] | null
   lightning_address: string | null
+  exclude_idea?: string | null
+}
+
+interface BubbleGroupData {
+  newest: Idea[];
+  mostVoted: Idea[];
+  oldest: Idea[];
+  random: Idea[];
+  randomVoted: Idea[];
+  combinedUniqueIdeas: Idea[];
 }
 
 // Bubble component for animated headline
@@ -139,6 +149,9 @@ export default function Home() {
   const [bubbles, setBubbles] = useState<BubbleData[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const nextId = useRef(0)
+  const [bubbleGroupData, setBubbleGroupData] = useState<BubbleGroupData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Helper to interpolate between two colors
   function lerpColor(a: string, b: string, t: number) {
@@ -156,36 +169,53 @@ export default function Home() {
     return `rgb(${rr},${rg},${rb})`
   }
 
-  // Fetch ideas from Supabase
-  const fetchIdeas = async () => {
-    try {
-      const res = await fetch('/api/ideas');
-      const result = await res.json();
-      if (res.ok && Array.isArray(result.ideas)) {
-        const allIdeas: Idea[] = result.ideas;
-        // Sort by created_at descending for newest
-        const newestIdeas = [...allIdeas].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
-        // Remove newest from the rest
-        const newestIds = new Set(newestIdeas.map(i => i.id));
-        const restIdeas = allIdeas.filter(i => !newestIds.has(i.id));
-        // Shuffle the rest and pick up to 20
-        const shuffled = restIdeas.sort(() => 0.5 - Math.random());
-        const picked = shuffled.slice(0, 20);
-        // Find max votes for scaling
-        const maxVotes = Math.max(2, ...restIdeas.map(i => i.total_sats_received || 0));
-        const orange = '#ea580c'; // 0 votes
-        const lightOrange = '#f59e42'; // 1 vote
-        const yellow = '#fbbf24'; // max votes
-        const orangeRed = '#ff5722'; // newest
-        // Generate positions for all bubbles
-        const positions = Array.from({ length: 25 }, () => ({
-          x: Math.random() * 80 + 10,
-          y: Math.random() * 60 + 10,
-          dx: (Math.random() - 0.5) * 0.25,
-          dy: (Math.random() - 0.5) * 0.25,
-        }));
-        // First 5: newest
-        const newestBubbles = newestIdeas.map((idea, idx) => ({
+  // Fetch bubble groups on mount and every 60 seconds
+  useEffect(() => {
+    function fetchBubbleGroups() {
+      setIsLoading(true);
+      fetch('/api/ideas/bubble-groups')
+        .then(res => res.json())
+        .then((data: BubbleGroupData) => {
+          setBubbleGroupData(data);
+          setIsLoading(false);
+          setError(null);
+          console.log('Raw API data:', data);
+          console.log('Deduplicated for chart:', data.combinedUniqueIdeas);
+        })
+        .catch(err => {
+          setError('Failed to fetch bubble groups');
+          setIsLoading(false);
+        });
+    }
+    fetchBubbleGroups();
+    const interval = setInterval(fetchBubbleGroups, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Transform bubbleGroupData.combinedUniqueIdeas into bubbles state
+  useEffect(() => {
+    if (bubbleGroupData && bubbleGroupData.combinedUniqueIdeas && bubbleGroupData.combinedUniqueIdeas.length > 0) {
+      console.log('--- [FRONTEND LOG] Updating bubbles from bubbleGroupData.combinedUniqueIdeas ---');
+      const ideas = bubbleGroupData.combinedUniqueIdeas;
+      const maxVotes = Math.max(2, ...ideas.map(i => i.total_sats_received || 0));
+      const orange = '#ea580c';
+      const lightOrange = '#f59e42';
+      const yellow = '#fbbf24';
+      const positions = Array.from({ length: ideas.length }, () => ({
+        x: Math.random() * 80 + 10,
+        y: Math.random() * 60 + 10,
+        dx: (Math.random() - 0.5) * 0.25,
+        dy: (Math.random() - 0.5) * 0.25,
+      }));
+      const newBubbles = ideas.map((idea, idx) => {
+        let bgColor = orange;
+        if (idea.total_sats_received === 1) {
+          bgColor = lightOrange;
+        } else if (idea.total_sats_received > 1) {
+          const t = Math.min(1, (idea.total_sats_received - 1) / (maxVotes - 1));
+          bgColor = lerpColor(lightOrange, yellow, t);
+        }
+        return {
           id: idx,
           name: idea.submitter_name || '',
           headline: idea.title || '',
@@ -193,53 +223,18 @@ export default function Home() {
           idea: idea.description || '',
           ...positions[idx],
           paused: false,
-          bgColor: orangeRed,
-        }));
-        // Next 20: rest, vote-based color
-        const restBubbles = picked.map((idea, idx) => {
-          let bgColor = orange;
-          if (idea.total_sats_received === 1) {
-            bgColor = lightOrange;
-          } else if (idea.total_sats_received > 1) {
-            const t = Math.min(1, (idea.total_sats_received - 1) / (maxVotes - 1));
-            bgColor = lerpColor(lightOrange, yellow, t);
-          }
-          return {
-            id: 5 + idx,
-            name: idea.submitter_name || '',
-            headline: idea.title || '',
-            lightning: idea.lightning_address || '',
-            idea: idea.description || '',
-            ...positions[5 + idx],
-            paused: false,
-            bgColor,
-          }
-        });
-        setBubbles([...newestBubbles, ...restBubbles]);
-        nextId.current = newestBubbles.length + restBubbles.length;
-      }
-    } catch (err) {
-      console.error('Failed to fetch ideas:', err);
+          bgColor,
+        };
+      });
+      setBubbles(newBubbles);
+      nextId.current = newBubbles.length;
+      console.log('--- [FRONTEND LOG] New bubbles array:', newBubbles);
     }
-  };
+  }, [bubbleGroupData]);
 
-  useEffect(() => {
-    fetchIdeas();
-  }, []);
-
-  // Add rotation effect every 60 seconds for bubbles
-  useEffect(() => {
-    const rotationInterval = setInterval(() => {
-      fetchIdeas();
-    }, 60000); // Rotate every 60 seconds
-
-    return () => clearInterval(rotationInterval);
-  }, []);
-
-  // Add new bubble on submit
+  // Update handleAddIdea to call fetchBubbleGroups
   const handleAddIdea = async (data: { name: string; headline: string; lightning: string; idea: string }) => {
     console.log('--- [FRONTEND LOG] Form data received:', data);
-
     const apiPayload = {
       submitter_name: data.name,
       title: data.headline,
@@ -247,7 +242,6 @@ export default function Home() {
       description: data.idea,
     };
     console.log('--- [FRONTEND LOG] Sending payload to API:', apiPayload);
-
     try {
       const response = await fetch('/api/ideas', {
         method: 'POST',
@@ -257,11 +251,23 @@ export default function Home() {
       console.log('--- [FRONTEND LOG] API response status:', response.status);
       const result = await response.json();
       console.log('--- [FRONTEND LOG] API result:', result);
-
       if (response.ok) {
         alert('Idea submitted successfully!');
-        // Re-fetch ideas from Supabase
-        fetchIdeas();
+        // Refresh bubble groups from API
+        setIsLoading(true);
+        fetch('/api/ideas/bubble-groups')
+          .then(res => res.json())
+          .then((data: BubbleGroupData) => {
+            setBubbleGroupData(data);
+            setIsLoading(false);
+            setError(null);
+            console.log('Raw API data:', data);
+            console.log('Deduplicated for chart:', data.combinedUniqueIdeas);
+          })
+          .catch(err => {
+            setError('Failed to fetch bubble groups');
+            setIsLoading(false);
+          });
       } else {
         alert(result.error || response.statusText);
       }
@@ -308,6 +314,10 @@ export default function Home() {
       )
     }
   }
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!bubbleGroupData) return <div>No data</div>;
 
   return (
     <>
@@ -362,6 +372,25 @@ export default function Home() {
         </div>
         <div className="mt-10 w-full">
           <h2 className="text-2xl font-semibold mb-4">Submitted Ideas Will Go Here</h2>
+        </div>
+        <div>
+          <h2>Bubble Chart Groups</h2>
+          <ul>
+            <li>Newest: {bubbleGroupData.newest.length} items</li>
+            <li>Most Voted: {bubbleGroupData.mostVoted.length} items</li>
+            <li>Oldest: {bubbleGroupData.oldest.length} items</li>
+            <li>Random: {bubbleGroupData.random.length} items</li>
+            <li>Random Voted: {bubbleGroupData.randomVoted.length} items</li>
+            <li>Deduplicated for chart: {bubbleGroupData.combinedUniqueIdeas.length} items</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Debug: Bubbles to Render</h3>
+          <ul>
+            {bubbleGroupData.combinedUniqueIdeas.map(idea => (
+              <li key={idea.id}>{idea.id} - {idea.title}</li>
+            ))}
+          </ul>
         </div>
       </main>
     </>
