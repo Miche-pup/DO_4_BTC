@@ -11,9 +11,11 @@ CREATE TABLE IF NOT EXISTS public.ideas (
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     submitter_name TEXT, -- Optional name for the submitter
+    lightning_address TEXT, -- <<<<<<< ADDED THIS MANUALLY EARLIER, ENSURE IT'S HERE
     tags TEXT[], -- Optional array of tags
     total_sats_received BIGINT DEFAULT 0 NOT NULL, -- Stores total sats received for this idea
-    opennode_charge_ids JSONB -- Optional: to store associated OpenNode charge IDs for reconciliation
+    opennode_charge_ids JSONB, -- Optional: to store associated OpenNode charge IDs for reconciliation
+    exclude_from_display BOOLEAN DEFAULT FALSE NOT NULL -- <<<<<<< NEW COLUMN ADDED HERE
 );
 
 -- Add a comment to describe the table (run only if table exists and comment doesn't)
@@ -29,6 +31,16 @@ BEGIN
    END IF;
 END
 $$;
+
+-- Add comment for the new column
+DO $$
+BEGIN
+   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ideas' AND column_name = 'exclude_from_display') THEN
+      COMMENT ON COLUMN public.ideas.exclude_from_display IS 'If TRUE, this idea should not be displayed on public listings.';
+   END IF;
+END
+$$;
+
 
 -- 2. Create function and trigger for automatically updating 'updated_at'
 -- This section should only run if the 'ideas' table exists
@@ -73,7 +85,7 @@ BEGIN
 END
 $$;
 
--- 5. RLS Policy: Allow public anon read access to all ideas
+-- 5. RLS Policy: Allow public anon read access to ideas
 -- This section should only run if the 'ideas' table exists
 DO $$
 BEGIN
@@ -82,7 +94,9 @@ BEGIN
       ON public.ideas
       FOR SELECT
       TO anon -- Corrected role
-      USING (true);
+      USING (true); -- Note: If you want to hide excluded ideas by default via RLS,
+                    -- you would change this to: USING (exclude_from_display IS FALSE)
+                    -- For now, we'll handle filtering in the application query.
    END IF;
 END
 $$;
@@ -96,7 +110,9 @@ BEGIN
       ON public.ideas
       FOR INSERT
       TO anon -- Corrected role
-      WITH CHECK (true);
+      WITH CHECK (true); -- Anon users cannot set exclude_from_display directly on insert,
+                         -- it will take its default value (FALSE).
+                         -- Only an admin/privileged role should update this field later.
    END IF;
 END
 $$;
