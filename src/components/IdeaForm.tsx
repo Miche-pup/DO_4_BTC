@@ -74,7 +74,7 @@ const IdeaForm = ({ open, onClose, onSubmit }: IdeaFormProps) => {
             placeholder="Your Name"
             value={form.name}
             onChange={handleChange}
-            className="rounded-md px-4 py-2 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="rounded-md px-4 py-3 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 touch-manipulation"
             aria-label="Your Name"
             autoFocus={open}
           />
@@ -86,7 +86,7 @@ const IdeaForm = ({ open, onClose, onSubmit }: IdeaFormProps) => {
             placeholder="Catchy Headline"
             value={form.headline}
             onChange={handleChange}
-            className="rounded-md px-4 py-2 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="rounded-md px-4 py-3 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 touch-manipulation"
             aria-label="Catchy Headline"
           />
           <label htmlFor="lightning" className="sr-only">Your Lightning Address</label>
@@ -97,7 +97,7 @@ const IdeaForm = ({ open, onClose, onSubmit }: IdeaFormProps) => {
             placeholder="Your Lightning Address"
             value={form.lightning}
             onChange={handleChange}
-            className="rounded-md px-4 py-2 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="rounded-md px-4 py-3 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 touch-manipulation"
             aria-label="Your Lightning Address"
           />
           <label htmlFor="idea" className="sr-only">How can we add value to Bitcoin?</label>
@@ -107,12 +107,12 @@ const IdeaForm = ({ open, onClose, onSubmit }: IdeaFormProps) => {
             placeholder="How can we add value to Bitcoin?"
             value={form.idea}
             onChange={handleChange}
-            className="rounded-md px-4 py-2 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[80px] resize-none"
+            className="rounded-md px-4 py-3 bg-zinc-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[120px] resize-none touch-manipulation"
             aria-label="How can we add value to Bitcoin?"
           />
           <button
             type="submit"
-            className="mt-4 w-full rounded-full bg-orange-500 px-6 py-3 font-bold text-white shadow-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 transition"
+            className="mt-4 w-full rounded-full bg-orange-500 px-6 py-4 font-bold text-white shadow-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 transition active:scale-95 active:bg-orange-700 touch-manipulation"
             aria-label="Submit Idea"
           >
             Submit Idea
