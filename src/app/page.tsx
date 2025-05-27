@@ -94,17 +94,26 @@ const Bubble = ({
 
   // Expand on click
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.preventDefault(); // Prevent any default behavior
+    e.stopPropagation(); // Stop event bubbling
     if (!expanded) {
-      onExpand(id)
+      onExpand(id);
     }
+  }
+
+  // Handle vote button click separately
+  const handleVoteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only handle vote here, don't expand/collapse
   }
 
   // Collapse on outside click
   useEffect(() => {
     if (!expanded) return
-    const handleOutside = () => {
-      onCollapse()
+    const handleOutside = (e: MouseEvent) => {
+      e.preventDefault();
+      onCollapse();
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
@@ -136,7 +145,7 @@ const Bubble = ({
           <div className="w-full text-xs text-gray-500 mt-2">Votes: {total_sats_received}</div>
           <button
             className="mt-4 w-full rounded-full bg-yellow-400 px-6 py-3 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition"
-            onClick={e => e.stopPropagation()}
+            onClick={handleVoteClick}
             aria-label="Vote with Lightning"
           >
             Vote with Lightning
