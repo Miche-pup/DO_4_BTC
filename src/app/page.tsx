@@ -174,7 +174,7 @@ export default function Home() {
     return `rgb(${rr},${rg},${rb})`
   }
 
-  // Fetch bubble groups on mount and every 60 seconds
+  // Fetch bubble groups on mount and every 120 seconds
   useEffect(() => {
     function fetchBubbleGroups() {
       setIsLoading(true);
@@ -193,7 +193,7 @@ export default function Home() {
         });
     }
     fetchBubbleGroups();
-    const interval = setInterval(fetchBubbleGroups, 20000);
+    const interval = setInterval(fetchBubbleGroups, 120000);
     return () => clearInterval(interval);
   }, []);
 
