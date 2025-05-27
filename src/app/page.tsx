@@ -125,13 +125,16 @@ const Bubble = ({
       style={{
         left: `${x}vw`,
         top: `${y}vh`,
-        width: expanded ? 340 : 120,
-        height: expanded ? 340 : 120,
+        width: expanded ? 'min(340px, 90vw)' : 120,
+        height: expanded ? 'min(340px, 90vw)' : 120,
         borderRadius: '9999px',
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'box-shadow 0.2s, width 0.3s, height 0.3s',
         overflow: expanded ? 'visible' : 'hidden',
         backgroundColor: bgColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
       onClick={handleClick}
       tabIndex={0}
@@ -139,10 +142,10 @@ const Bubble = ({
     >
       {expanded ? (
         <div className="w-full h-full flex flex-col justify-center items-center p-6 gap-2 text-base font-normal bg-white text-black rounded-full border-2 border-orange-400 shadow-xl text-center">
-          {headline && <div className="w-full">{headline}</div>}
-          {name && <div className="w-full">{name}</div>}
-          {idea && <div className="w-full">{idea}</div>}
-          <div className="w-full text-xs text-gray-500 mt-2">Votes: {total_sats_received}</div>
+          {headline && <div className="w-full text-center break-words">{headline}</div>}
+          {name && <div className="w-full text-center break-words">{name}</div>}
+          {idea && <div className="w-full text-center break-words">{idea}</div>}
+          <div className="w-full text-xs text-gray-500 mt-2 text-center">Votes: {total_sats_received}</div>
           <button
             className="mt-4 w-full rounded-full bg-yellow-400 px-6 py-3 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition"
             onClick={handleVoteClick}
@@ -152,7 +155,7 @@ const Bubble = ({
           </button>
         </div>
       ) : (
-        <span className="text-center px-2 break-words text-lg">{headline}</span>
+        <span className="text-center px-2 break-words text-lg flex items-center justify-center h-full w-full">{headline}</span>
       )}
     </div>
   )
