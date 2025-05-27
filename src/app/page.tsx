@@ -21,6 +21,7 @@ interface BubbleData {
   paused?: boolean
   bgColor: string // new: inline background color
   total_sats_received: number
+  created_at: string // Add creation date
 }
 
 export interface Idea {
@@ -121,7 +122,7 @@ const Bubble = ({
 
   return (
     <div
-      className={`absolute flex flex-col items-center justify-center text-white font-bold shadow-lg select-none z-20 transition-all duration-300 ${expanded ? 'cursor-default' : 'cursor-pointer'} ${expanded ? 'ring-4 ring-orange-300' : ''}`}
+      className={`absolute flex flex-col items-center justify-center text-white font-bold shadow-lg select-none transition-all duration-300 ${expanded ? 'cursor-default' : 'cursor-pointer'} ${expanded ? 'ring-4 ring-orange-300' : ''}`}
       style={{
         left: `${x}vw`,
         top: `${y}vh`,
@@ -135,6 +136,7 @@ const Bubble = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: expanded ? 50 : 20 + id, // Higher z-index for newer bubbles and expanded state
       }}
       onClick={handleClick}
       tabIndex={0}
@@ -222,8 +224,11 @@ export default function Home() {
   // Transform bubbleGroupData.combinedUniqueIdeas into bubbles state
   useEffect(() => {
     if (bubbleGroupData && bubbleGroupData.combinedUniqueIdeas && bubbleGroupData.combinedUniqueIdeas.length > 0) {
-      // Shuffle the ideas array using Fisher-Yates shuffle
-      const ideas = shuffleArray(bubbleGroupData.combinedUniqueIdeas);
+      // Sort ideas by creation date (newest first)
+      const sortedIdeas = [...bubbleGroupData.combinedUniqueIdeas].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const ideas = shuffleArray(sortedIdeas);
       const maxVotes = Math.max(2, ...ideas.map(i => i.total_sats_received || 0));
       const orange = '#ea580c';
       const lightOrange = '#f59e42';
@@ -269,6 +274,7 @@ export default function Home() {
           paused: false,
           bgColor,
           total_sats_received: idea.total_sats_received || 0,
+          created_at: idea.created_at,
         };
       });
       setBubbles(newBubbles);
