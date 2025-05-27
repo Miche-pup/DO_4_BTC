@@ -392,6 +392,14 @@ export default function Home() {
             </a>
             ?
           </h1>
+          <a
+            href="https://devpost.com/software/do4btc?_gl=1*1caz57r*_gcl_au*Mzk1NjIxODg2LjE3NDc0NzU0OTQ.*_ga*MTIzMDU4MjYwNC4xNzQ3NDc1NDk0*_ga_0YHJK3Y10M*czE3NDgzNjg3NjEkbzkkZzEkdDE3NDgzNjg3NjMkajAkbDAkaDA."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 text-orange-400 hover:text-orange-300 transition font-bold"
+          >
+            BTC25 Hackathon
+          </a>
         </div>
         {/* SVG lines */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" style={{ position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh' }}>
