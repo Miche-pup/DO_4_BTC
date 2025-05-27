@@ -174,6 +174,16 @@ export default function Home() {
     return `rgb(${rr},${rg},${rb})`
   }
 
+  // Fisher-Yates shuffle function
+  function shuffleArray<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  }
+
   // Fetch bubble groups on mount and every 120 seconds
   useEffect(() => {
     function fetchBubbleGroups() {
@@ -200,7 +210,8 @@ export default function Home() {
   // Transform bubbleGroupData.combinedUniqueIdeas into bubbles state
   useEffect(() => {
     if (bubbleGroupData && bubbleGroupData.combinedUniqueIdeas && bubbleGroupData.combinedUniqueIdeas.length > 0) {
-      const ideas = bubbleGroupData.combinedUniqueIdeas;
+      // Shuffle the ideas array using Fisher-Yates shuffle
+      const ideas = shuffleArray(bubbleGroupData.combinedUniqueIdeas);
       const maxVotes = Math.max(2, ...ideas.map(i => i.total_sats_received || 0));
       const orange = '#ea580c';
       const lightOrange = '#f59e42';
