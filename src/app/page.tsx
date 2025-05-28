@@ -65,6 +65,7 @@ const Bubble = ({
   onCollapse,
   bgColor,
   total_sats_received,
+  db_id,
 }: BubbleData & {
   expanded: boolean
   onMove: (id: number, x: number, y: number, dx: number, dy: number) => void
@@ -73,6 +74,7 @@ const Bubble = ({
   total_sats_received: number
 }) => {
   const requestRef = useRef<number>()
+  const [votes, setVotes] = useState(total_sats_received)
 
   useEffect(() => {
     if (paused || expanded) return
@@ -102,11 +104,31 @@ const Bubble = ({
     }
   }
 
-  // Handle vote button click separately
-  const handleVoteClick = (e: React.MouseEvent) => {
+  // Handle vote button click
+  const handleVoteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only handle vote here, don't expand/collapse
+    
+    try {
+      const response = await fetch('/api/ideas/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea_id: db_id }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setVotes(prev => prev + 1);
+        // Refresh bubble groups to update all bubbles
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to vote. Please try again.');
+      }
+    } catch (err) {
+      console.error('Vote error:', err);
+      alert('An error occurred while voting. Please try again.');
+    }
   }
 
   // Collapse on outside click
@@ -126,8 +148,8 @@ const Bubble = ({
       style={{
         left: `${x}vw`,
         top: `${y}vh`,
-        width: expanded ? 'min(340px, 90vw)' : 120,
-        height: expanded ? 'min(340px, 90vw)' : 120,
+        width: expanded ? 'min(170px, 45vw)' : 60,
+        height: expanded ? 'min(170px, 45vw)' : 60,
         borderRadius: '9999px',
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'box-shadow 0.2s, width 0.3s, height 0.3s',
@@ -136,20 +158,20 @@ const Bubble = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: expanded ? 50 : 20 + id, // Higher z-index for newer bubbles and expanded state
+        zIndex: expanded ? 40 : 20 + id,
       }}
       onClick={handleClick}
       tabIndex={0}
       aria-label={headline || 'Bubble'}
     >
       {expanded ? (
-        <div className="w-full h-full flex flex-col justify-center items-center p-6 gap-2 text-base font-normal bg-white text-black rounded-full border-2 border-orange-400 shadow-xl text-center">
-          {headline && <div className="w-full text-center break-words">{headline}</div>}
-          {name && <div className="w-full text-center break-words">{name}</div>}
-          {idea && <div className="w-full text-center break-words">{idea}</div>}
-          <div className="w-full text-xs text-gray-500 mt-2 text-center">Votes: {total_sats_received}</div>
+        <div className="w-full h-full flex flex-col justify-center items-center p-3 gap-1 text-sm font-normal bg-white text-black rounded-full border-2 border-orange-400 shadow-xl text-center">
+          {headline && <div className="w-full text-center break-words text-sm">{headline}</div>}
+          {name && <div className="w-full text-center break-words text-xs">{name}</div>}
+          {idea && <div className="w-full text-center break-words text-xs">{idea}</div>}
+          <div className="w-full text-xs text-gray-500 mt-1 text-center">Votes: {votes}</div>
           <button
-            className="mt-4 w-full rounded-full bg-yellow-400 px-6 py-3 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition"
+            className="mt-2 w-full rounded-full bg-yellow-400 px-3 py-1.5 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition text-xs"
             onClick={handleVoteClick}
             aria-label="Vote with Lightning"
           >
@@ -157,7 +179,7 @@ const Bubble = ({
           </button>
         </div>
       ) : (
-        <span className="text-center px-2 break-words text-lg flex items-center justify-center h-full w-full">{headline}</span>
+        <span className="text-center px-2 break-words text-sm flex items-center justify-center h-full w-full">{headline}</span>
       )}
     </div>
   )
@@ -198,7 +220,7 @@ export default function Home() {
     return newArray;
   }
 
-  // Fetch bubble groups on mount and every 120 seconds
+  // Fetch bubble groups on mount
   useEffect(() => {
     function fetchBubbleGroups() {
       setIsLoading(true);
@@ -217,8 +239,6 @@ export default function Home() {
         });
     }
     fetchBubbleGroups();
-    const interval = setInterval(fetchBubbleGroups, 120000);
-    return () => clearInterval(interval);
   }, []);
 
   // Transform bubbleGroupData.combinedUniqueIdeas into bubbles state
@@ -228,21 +248,22 @@ export default function Home() {
       const sortedIdeas = [...bubbleGroupData.combinedUniqueIdeas].sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-      const ideas = shuffleArray(sortedIdeas);
-      const maxVotes = Math.max(2, ...ideas.map(i => i.total_sats_received || 0));
+      // Take only the 3 newest ideas
+      const newestIdeas = sortedIdeas.slice(0, 10);
+      const maxVotes = Math.max(2, ...newestIdeas.map(i => i.total_sats_received || 0));
       const orange = '#ea580c';
       const lightOrange = '#f59e42';
       const yellow = '#fbbf24';
       // Find the index of the top-ranked idea (highest total_sats_received)
       let topIdx = 0;
       let topVotes = -1;
-      ideas.forEach((idea, idx) => {
+      newestIdeas.forEach((idea, idx) => {
         if ((idea.total_sats_received || 0) > topVotes) {
           topVotes = idea.total_sats_received || 0;
           topIdx = idx;
         }
       });
-      const positions = Array.from({ length: ideas.length }, (_, idx) => {
+      const positions = Array.from({ length: newestIdeas.length }, (_, idx) => {
         let dx = (Math.random() - 0.5) * 0.16;
         let dy = (Math.random() - 0.5) * 0.16;
         // Slow down all bubbles by 30%
@@ -255,7 +276,7 @@ export default function Home() {
           dy,
         };
       });
-      const newBubbles = ideas.map((idea, idx) => {
+      const newBubbles = newestIdeas.map((idea, idx) => {
         let bgColor = orange;
         if (idea.total_sats_received === 1) {
           bgColor = lightOrange;
@@ -419,7 +440,7 @@ export default function Home() {
         {/* Floating Button */}
         {!formOpen && (
           <button
-            className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 transition"
+            className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-12 py-6 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 transition text-2xl"
             onClick={() => setFormOpen(true)}
             aria-label="Open Submit Idea Form"
           >
