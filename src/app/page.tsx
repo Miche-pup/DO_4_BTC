@@ -75,6 +75,7 @@ const Bubble = ({
 }) => {
   const requestRef = useRef<number>()
   const [votes, setVotes] = useState(total_sats_received)
+  const [bubbleSize, setBubbleSize] = useState(170)
 
   useEffect(() => {
     if (paused || expanded) return
@@ -94,6 +95,27 @@ const Bubble = ({
     return () => cancelAnimationFrame(requestRef.current!)
     // eslint-disable-next-line
   }, [paused, expanded])
+
+  // Calculate required bubble size based on content
+  useEffect(() => {
+    if (expanded) {
+      const contentLength = (headline?.length || 0) + (name?.length || 0) + (idea?.length || 0);
+      const baseSize = 170; // Base size in pixels
+      const minSize = 170; // Minimum size
+      const maxSize = 400; // Maximum size
+      const sizeIncrement = 30; // Size increment per 50 characters
+      
+      const calculatedSize = Math.min(
+        maxSize,
+        Math.max(
+          minSize,
+          baseSize + Math.floor(contentLength / 50) * sizeIncrement
+        )
+      );
+      
+      setBubbleSize(calculatedSize);
+    }
+  }, [expanded, headline, name, idea]);
 
   // Expand on click
   const handleClick = (e: React.MouseEvent) => {
@@ -148,8 +170,8 @@ const Bubble = ({
       style={{
         left: `${x}vw`,
         top: `${y}vh`,
-        width: expanded ? 'min(170px, 45vw)' : 60,
-        height: expanded ? 'min(170px, 45vw)' : 60,
+        width: expanded ? `min(${bubbleSize}px, 45vw)` : 60,
+        height: expanded ? `min(${bubbleSize}px, 45vw)` : 60,
         borderRadius: '9999px',
         transform: 'translate(-50%, -50%) scale(1)',
         transition: 'box-shadow 0.2s, width 0.3s, height 0.3s',
@@ -166,12 +188,90 @@ const Bubble = ({
     >
       {expanded ? (
         <div className="w-full h-full flex flex-col justify-center items-center p-3 gap-1 text-sm font-normal bg-white text-black rounded-full border-2 border-orange-400 shadow-xl text-center">
-          {headline && <div className="w-full text-center break-words text-sm">{headline}</div>}
-          {name && <div className="w-full text-center break-words text-xs">{name}</div>}
-          {idea && <div className="w-full text-center break-words text-xs">{idea}</div>}
-          <div className="w-full text-xs text-gray-500 mt-1 text-center">Votes: {votes}</div>
+          {headline && (
+            <div
+              className="w-full text-center break-words text-sm font-semibold"
+              style={{
+                fontSize: `clamp(0.6rem, ${Math.max(0.6, 1.1 - (headline.length * 0.02))}rem, 1.1rem)`,
+                lineHeight: '1.1',
+                maxHeight: 'none',
+                overflow: 'hidden',
+                display: 'block',
+                wordBreak: 'break-word',
+                position: 'absolute',
+                top: '15%',
+                left: '50%',
+                transform: 'translate(-50%, 0)',
+                width: '85%',
+                padding: '0 0.5rem',
+              }}
+            >
+              {headline}
+            </div>
+          )}
+          {name && (
+            <div 
+              className="w-full text-center break-words text-xs"
+              style={{
+                position: 'absolute',
+                top: '25%',
+                left: '50%',
+                transform: 'translate(-50%, 0)',
+                width: '85%',
+                fontSize: `clamp(0.5rem, ${Math.max(0.5, 0.8 - (name.length * 0.02))}rem, 0.8rem)`,
+                maxHeight: 'none',
+                overflow: 'hidden',
+                display: 'block',
+                wordBreak: 'break-word',
+                padding: '0 0.5rem',
+              }}
+            >
+              {name}
+            </div>
+          )}
+          {idea && (
+            <div 
+              className="w-full text-center break-words text-xs"
+              style={{
+                position: 'absolute',
+                top: '35%',
+                left: '50%',
+                transform: 'translate(-50%, 0)',
+                width: '85%',
+                fontSize: `clamp(0.5rem, ${Math.max(0.5, 0.8 - (idea.length * 0.02))}rem, 0.8rem)`,
+                maxHeight: 'none',
+                overflow: 'hidden',
+                display: 'block',
+                wordBreak: 'break-word',
+                padding: '0 0.5rem',
+              }}
+            >
+              {idea}
+            </div>
+          )}
+          <div 
+            className="w-full text-xs text-gray-500 text-center"
+            style={{
+              position: 'absolute',
+              top: '65%',
+              left: '50%',
+              transform: 'translate(-50%, 0)',
+              width: '85%',
+              fontSize: '0.7rem',
+              padding: '0 0.5rem',
+            }}
+          >
+            Votes: {votes}
+          </div>
           <button
-            className="mt-2 w-full rounded-full bg-yellow-400 px-3 py-1.5 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition text-xs"
+            className="w-full rounded-full bg-yellow-400 px-3 py-1.5 font-bold text-black shadow-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition text-xs"
+            style={{
+              position: 'absolute',
+              top: '80%',
+              left: '50%',
+              transform: 'translate(-50%, 0)',
+              width: '85%',
+            }}
             onClick={handleVoteClick}
             aria-label="Vote with Lightning"
           >
@@ -179,7 +279,28 @@ const Bubble = ({
           </button>
         </div>
       ) : (
-        <span className="text-center px-2 break-words text-sm flex items-center justify-center h-full w-full">{headline}</span>
+        <span
+          className="text-center px-2 break-words flex items-center justify-center h-full w-full font-semibold absolute inset-0"
+          style={{
+            fontSize: `clamp(0.5rem, ${Math.max(0.5, 1 - (headline.length * 0.02))}rem, 1rem)`,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'normal',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            maxWidth: '85%',
+            lineHeight: '1.1',
+            maxHeight: '100%',
+            padding: '0.5rem',
+            margin: 'auto',
+            transform: 'translate(-50%, 0)',
+            left: '50%',
+            top: '33%',
+          }}
+        >
+          {headline}
+        </span>
       )}
     </div>
   )
