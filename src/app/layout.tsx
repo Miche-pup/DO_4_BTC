@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Link from 'next/link'
 import Footer from './footer'
+import { Analytics } from '@vercel/analytics/next'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-gray-50`}>
         {children}
         <Footer />
+        <Analytics />
       </body>
     </html>
   )
